@@ -1,0 +1,7 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Apply onboarding preset for use Paul PLANCQ",
+  "extends": [
+    "github>pplancq/renovate-config"
+  ]
+}
