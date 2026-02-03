@@ -48,8 +48,8 @@ jobs:
 
           # List repositories (non-fork, non-archived)
           log "Retrieving repos for ${GITHUB_REPOSITORY_OWNER}..."
-          repos_json=$(gh repo list "${GITHUB_REPOSITORY_OWNER}" --limit 1000 --json name,owner,fork,archived)
-          repos=$(echo "${repos_json}" | jq -r '.[] | select(.fork==false and .archived==false) | "\(.owner.login)/\(.name)"')
+          repos_json=$(gh repo list "${GITHUB_REPOSITORY_OWNER}" --limit 1000 --json name,owner,isFork,isArchived)
+          repos=$(echo "${repos_json}" | jq -r '.[] | select(.isFork==false and .isArchived==false) | "\(.owner.login)/\(.name)"')
 
           if [ -z "${repos}" ]; then
             log "No target repos found."
