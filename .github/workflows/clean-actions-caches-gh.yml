@@ -17,8 +17,8 @@ jobs:
       - name: Authenticate gh with token
         id: auth
         env:
-          GH_TOKEN: ${{ secrets.CLEANER_TOKEN }}
-        run: gh auth login --with-token
+          CLEANER_TOKEN: ${{ secrets.CLEANER_TOKEN }}
+        run: echo "${CLEANER_TOKEN}" | gh auth login --with-token
 
       - name: Create issue for expired token
         if: failure() && steps.auth.outcome == 'failure'
