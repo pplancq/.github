@@ -1,0 +1,81 @@
+name: Clean Actions Caches
+
+on:
+  schedule:
+    - cron: '0 1 * * 0' # Sunday 01:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  actions: write
+  contents: read
+  issues: write
+
+jobs:
+  clean-caches:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate gh with token
+        id: auth
+        env:
+          GH_TOKEN: ${{ secrets.CLEANER_TOKEN }}
+        run: echo "${GH_TOKEN}" | gh auth login --with-token
+
+      - name: Create issue for expired token
+        if: failure() && steps.auth.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --repo "${{ github.repository }}" \
+            --title "🔑 CLEANER_TOKEN has expired" \
+            --body "The \`CLEANER_TOKEN\` secret has expired and needs to be updated.
+
+          **Action required:**
+          1. Generate a new Personal Access Token with \`repo\` and \`actions:write\` permissions
+          2. Update the \`CLEANER_TOKEN\` secret in repository settings
+          3. Close this issue once completed
+
+          **Failed workflow run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --assignee "${{ github.repository_owner }}"
+
+      - name: Run cleanup
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          log(){ echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] $*"; }
+
+          # List repositories (non-fork, non-archived)
+          log "Retrieving repos for ${GITHUB_REPOSITORY_OWNER}..."
+          repos_json=$(gh repo list "${GITHUB_REPOSITORY_OWNER}" --limit 1000 --json name,owner,fork,archived)
+          repos=$(echo "${repos_json}" | jq -r '.[] | select(.fork==false and .archived==false) | "\(.owner.login)/\(.name)"')
+
+          if [ -z "${repos}" ]; then
+            log "No target repos found."
+            exit 0
+          fi
+
+          log "Repos to process:"
+          echo "${repos}" | sed 's/^/ - /'
+
+          for repo in ${repos}; do
+            log "Processing: ${repo}"
+
+            cache_ids=$(gh cache list --repo "${repo}" --limit 1000 --json id --jq '.[].id' 2>/dev/null || true)
+
+            if [ -z "${cache_ids}" ]; then
+              log "  No cache found in ${repo}"
+              continue
+            fi
+
+            for id in ${cache_ids}; do
+                if gh cache delete --repo "${repo}" "${id}" 2>/dev/null; then
+                  log "  Deleted cache ${id} in ${repo}"
+                else
+                  log "  Error deleting cache ${id} in ${repo}"
+                fi
+            done
+          done
+
+          log "Completed."
