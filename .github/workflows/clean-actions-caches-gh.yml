@@ -41,7 +41,7 @@ jobs:
       - name: Run cleanup
         if: success()
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.CLEANER_TOKEN }}
         run: |
           set -euo pipefail
           log(){ echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] $*"; }
